@@ -49,7 +49,7 @@ for i, image in enumerate(images):
 print("*** Images Received ***\n\n")
 
 search_text = 'src ="/Users/julianlandaw/Library/Application Support/Anki2/JLandaw/collection.media/'
-replace_text = 'style= "max-height: 500px; max-width: 75%; object-fit: contain" src ="Images/'
+replace_text = 'loading="lazy" alt="" src="Images/'
 html_string = replacetext(html_string, search_text, replace_text)
 
 soup = BeautifulSoup(html_string,'html.parser');
@@ -59,10 +59,141 @@ divs = soup.find_all('td',attrs={"width": "33.333333333333336%"})
 preamble = """<!DOCTYPE html>
 <html lang="en">
 <head>
+    <title>Anki Deck | Welcome!</title>
     <meta charset="utf-8">
-    <title>Anki Deck</title>
+    
+    <style>
+      #bottom-toolbar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: #333;
+        padding: 10px;
+        display: none; /* Hidden by default */
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        z-index: 1000;
+      }
+    
+      #bottom-toolbar button {
+        background-color: #555;
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 14px;
+        border-radius: 4px;
+      }
+    
+      #bottom-toolbar button:hover {
+        background-color: #777;
+      }
+    
+      #toolbar-toggle {
+        position: fixed;
+        bottom: 60px;
+        right: 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 14px;
+        border-radius: 50%;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 1001;
+      }
+
+      img {
+        max-width: 50vw;     /* Max width: 50% of viewport width */
+        max-height: 50vh;    /* Max height: 50% of viewport height */
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        display: block;
+        margin: 1em auto;
+        loading: lazy;
+      }
+        
+      .zoomable {
+        cursor: zoom-in;
+        transition: transform 0.3s ease;
+      }
+
+      .zoomed {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        max-width: 90vw;
+        max-height: 90vh;
+        width: auto;
+        height: auto;
+        z-index: 1001;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        cursor: zoom-out;
+      }
+
+      .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.6);
+        z-index: 1000;
+        display: none;
+      }
+    </style>
 </head>
-<body id="home">
+"""
+
+buttons = """<!-- Toggle Button -->
+<button id="toolbar-toggle">☰</button>
+
+<div id="bottom-toolbar">
+"""
+
+javascript = """<!-- JavaScript -->
+<script>
+  const toggleBtn = document.getElementById('toolbar-toggle');
+  const toolbar = document.getElementById('bottom-toolbar');
+
+  toggleBtn.addEventListener('click', () => {
+    toolbar.style.display = toolbar.style.display === 'flex' ? 'none' : 'flex';
+  });
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const images = document.querySelectorAll("img");
+    const overlay = document.createElement("div");
+    overlay.className = "overlay";
+    document.body.appendChild(overlay);
+
+    images.forEach(img => {
+      img.classList.add("zoomable");
+      img.addEventListener("click", () => {
+        if (img.classList.contains("zoomed")) {
+          img.classList.remove("zoomed");
+          overlay.style.display = "none";
+        } else {
+          img.classList.add("zoomed");
+          overlay.style.display = "block";
+        }
+      });
+    });
+
+    overlay.addEventListener("click", () => {
+      document.querySelectorAll(".zoomed").forEach(img => img.classList.remove("zoomed"));
+      overlay.style.display = "none";
+    });
+  });
+</script>
+"""
+
+
+body = """<body id="home">
 
     <article style="margin:2%;">
     """
@@ -81,9 +212,6 @@ conclusion = """</article>
     <!-- End of page footer -->
 </body></html>"""
 
-
-html_stringout = preamble
-
 questions = []
 
 for i in range(len(divs)):
@@ -97,11 +225,16 @@ qcount = 0
 for i in range(len(questions)):
     question = questions[i]
     length = len(question)
-    html_stringout = html_stringout + "<p>(" + str(qcount+1) + "):<br>" + question + "<hr><hr></p>"
+    body = body + '<section id="Q' + str(qcount+1) + '">(' + str(qcount+1) + '):<br>' + question + '<hr><hr></section>'
+    buttons = buttons + """<button onclick="location.href='#Q""" + str(qcount+1) + """'">Q""" + str(qcount+1) + """</button>"""
     qcount = qcount+1
 
-html_stringout = html_stringout + conclusion
+buttons = buttons + """</div>"""
+
+html_stringout = preamble + buttons + javascript + body + conclusion
+soup = BeautifulSoup(html_stringout, 'html.parser')
+pretty_html = soup.prettify()
 
 text_file = open("formatted.html", "w")
-n = text_file.write(html_stringout)
+n = text_file.write(pretty_html)
 text_file.close()
